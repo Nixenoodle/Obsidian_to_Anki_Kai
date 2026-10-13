@@ -9,6 +9,7 @@ export interface PluginSettings {
 	ALIAS_FIELDS: Record<string, string>,
 	FOLDER_DECKS: Record<string, string>,
 	FOLDER_TAGS: Record<string, string>,
+	TAG_DECKS: Record<string, string>,
 	Syntax: {
 		"Begin Note": string,
 		"End Note": string,
@@ -58,6 +59,7 @@ export interface FileData {
 	file_link_fields: Record<string, string>
 	context_fields: Record<string, string>
 	alias_fields: Record<string, string>
+	tag_decks: Record<string, string>
 	template: AnkiConnectNote
 	EXISTING_IDS: number[]
 	vault_name: string
