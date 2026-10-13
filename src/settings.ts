@@ -121,34 +121,37 @@ export class SettingsTab extends PluginSettingTab {
 	    let tagInput = ''
 	    let deckInput = ''
 
-	    new Setting(container)
-	        .setName('Add tag mapping')
-	        .setDesc('Enter an Obsidian tag and its destination Anki deck.')
-	        .addText(text => text
-	            .setPlaceholder('#biology')
-	            .onChange(value => {
-	                tagInput = value
-	            })
-	        )
-	        .addText(text => text
-	            .setPlaceholder('School::Biology')
-	            .onChange(value => {
-	                deckInput = value
-	            })
-	        )
-	        .addButton(button => button
-	            .setButtonText('Add mapping')
-	            .onClick(async () => {
-	                const tag = tagInput.trim().replace(/^#/, '')
-	                const deck = deckInput.trim()
+		const addMappingSetting = new Setting(container)
+		.setName('Add tag mapping')
+		.setDesc('Enter an Obsidian tag and its destination Anki deck.')
+		.addText(text => text
+			.setPlaceholder('#biology')
+			.onChange(value => {
+				tagInput = value
+			})
+		)
+		.addText(text => text
+			.setPlaceholder('School::Biology')
+			.onChange(value => {
+				deckInput = value
+			})
+		)
+		.addButton(button => button
+			.setButtonText('Add mapping')
+			.onClick(async () => {
+				const tag = tagInput.trim().replace(/^#/, '')
+				const deck = deckInput.trim()
 
-	                if (!tag || !deck) return
+				if (!tag || !deck) return
 
-	                plugin.settings.TAG_DECKS[tag] = deck
-	                await plugin.saveAllData()
-	                renderRows()
-	            })
-	        )
+				plugin.settings.TAG_DECKS[tag] = deck
+				await plugin.saveAllData()
+				renderRows()
+			})
+		)
+
+		addMappingSetting.controlEl.style.flexWrap = 'wrap'
+		addMappingSetting.controlEl.style.gap = '8px'
 	}
 
 	private setupGeneralTab() {
