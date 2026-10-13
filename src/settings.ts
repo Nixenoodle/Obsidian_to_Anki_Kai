@@ -59,6 +59,7 @@ export class SettingsTab extends PluginSettingTab {
 			{ id: 'general', name: 'General' },
 			{ id: 'note-types', name: 'Note Types' },
 			{ id: 'folders', name: 'Folders' },
+			{ id: 'tag-decks', name: 'tag -> Deck' },
 			{ id: 'syntax', name: 'Syntax' },
 			{ id: 'advanced', name: 'Advanced' }
 		], activeTab || undefined)
@@ -66,8 +67,88 @@ export class SettingsTab extends PluginSettingTab {
 		this.setupGeneralTab()
 		this.setupNoteTypesTab()
 		this.setupFoldersTab()
+		this.setupTagDecksTab()
 		this.setupSyntaxTab()
 		this.setupAdvancedTab()
+	}
+
+
+	private setupTagDecksTab() {
+	    const container = this.tabContainer.getTabContent('tag-decks')
+	    if (!container) return
+
+	    const plugin = (this as any).plugin
+
+	    // Older installations may not have this setting yet.
+	    if (!plugin.settings.TAG_DECKS) {
+	        plugin.settings.TAG_DECKS = {}
+	    }
+
+	    container.createEl('h3', { text: 'Tag → Deck Routing' })
+
+	    container.createEl('p', {
+	        text: 'Map Obsidian tags to Anki decks. ' +
+	              'For example: #biology → School::Biology.'
+	    })
+
+	    // Display the currently configured mappings.
+	    const rows = container.createDiv()
+
+	    const renderRows = () => {
+	        rows.empty()
+
+	        const mappings = plugin.settings.TAG_DECKS as Record<string, string>
+
+	        for (const [tag, deck] of Object.entries(mappings)) {
+	            new Setting(rows)
+	                .setName(`#${tag}`)
+	                .setDesc(deck)
+	                .addExtraButton(button => button
+	                    .setIcon('trash')
+	                    .setTooltip('Delete mapping')
+	                    .onClick(async () => {
+	                        delete plugin.settings.TAG_DECKS[tag]
+	                        await plugin.saveAllData()
+	                        renderRows()
+	                    })
+	                )
+	        }
+	    }
+
+	    renderRows()
+
+	    // Collect values for a new mapping.
+	    let tagInput = ''
+	    let deckInput = ''
+
+	    new Setting(container)
+	        .setName('Add tag mapping')
+	        .setDesc('Enter an Obsidian tag and its destination Anki deck.')
+	        .addText(text => text
+	            .setPlaceholder('#biology')
+	            .onChange(value => {
+	                tagInput = value
+	            })
+	        )
+	        .addText(text => text
+	            .setPlaceholder('School::Biology')
+	            .onChange(value => {
+	                deckInput = value
+	            })
+	        )
+	        .addButton(button => button
+	            .setButtonText('Add mapping')
+	            .onClick(async () => {
+	                const tag = tagInput.trim().replace(/^#/, '')
+	                const deck = deckInput.trim()
+
+	                if (!tag || !deck) return
+
+	                plugin.settings.TAG_DECKS[tag] = deck
+	                await plugin.saveAllData()
+	                renderRows()
+	            })
+	        )
 	}
 
 	private setupGeneralTab() {

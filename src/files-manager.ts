@@ -281,6 +281,7 @@ export class FileManager {
             for (let j = 0; j < file_response.length; j++) {
                 if (file.notes_to_edit[j] && file.notes_to_edit[j].identifier === file_response[j].noteId) {
                     file.notes_to_edit[j].current_tags = file_response[j].tags
+                    file.notes_to_edit[j].current_cards = file_response[j].cards
                 }
             }
         }
