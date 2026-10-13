@@ -147,13 +147,13 @@ abstract class AbstractFile {
         this.target_deck = result ? result[1] : this.data.template["deckName"]
     }
 
-    getDeckForBlock(blockText: string): string {
+    getDeckForBlock(blockText: string, noteTags: string[] = []): string {
         // An explicit TARGET DECK overrides tag mappings.
         if (this.file.match(this.data.DECK_REGEXP)) {
             return this.target_deck
         }
 
-        // Look for matching tags in the current flashcard.
+        // Inline hashtags have priority over note-specific Tags.
         for (const tag of extractObsidianTags(blockText)) {
             const deck = this.data.tag_decks[tag]
 
@@ -162,7 +162,16 @@ abstract class AbstractFile {
             }
         }
 
-        // If no tags match, preserve the existing deck.
+        // Also check tags extracted from the Tags: declaration.
+        for (const tag of noteTags) {
+            const deck = this.data.tag_decks[tag.trim()]
+
+            if (deck?.trim()) {
+                return deck.trim()
+            }
+        }
+
+        // No matching tags: use the normal file/folder deck.
         return this.target_deck
     }
 
@@ -452,7 +461,7 @@ export class AllFile extends AbstractFile {
 
             let context = this.getShouldAddContext(note_obj.note_type) ? this.getContextAtIndex(note_match.index) : ""
 
-            const noteDeck = this.getDeckForBlock(note)
+            const noteDeck = this.getDeckForBlock(note, note_obj.tags)
 
             let parsed = note_obj.parse(
                 noteDeck,
@@ -521,7 +530,7 @@ export class AllFile extends AbstractFile {
 
             let context = this.getShouldAddContext(note_obj.note_type) ? this.getContextAtIndex(note_match.index) : ""
 
-            const noteDeck = this.getDeckForBlock(note)
+            const noteDeck = this.getDeckForBlock(note, note_obj.tags)
 
             let parsed = note_obj.parse(
                 noteDeck,
@@ -598,7 +607,7 @@ export class AllFile extends AbstractFile {
 
                     let context = this.getShouldAddContext(note_type) ? this.getContextAtIndex(match.index) : ""
 
-                    const noteDeck = this.getDeckForBlock(match[0])
+                    const noteDeck = this.getDeckForBlock(match[0], note_obj.tags)
 
                     const parsed: AnkiConnectNoteAndID = note_obj.parse(
                         noteDeck,
