@@ -81,6 +81,7 @@ abstract class AbstractFile {
 
     frozen_fields_dict: FROZEN_FIELDS_DICT
     target_deck: string
+    has_target_deck: boolean
     global_tags: string
 
     notes_to_add: AnkiConnectNote[]
@@ -105,6 +106,7 @@ abstract class AbstractFile {
         this.file_cache = file_cache
         this.formatter = new FormatConverter(file_cache, this.data.vault_name)
         this.target_deck = data.template.deckName
+        this.has_target_deck = false
         this.global_tags = data.template.tags.join(TAG_SEP)
     }
 
@@ -144,12 +146,13 @@ abstract class AbstractFile {
 
     setup_target_deck() {
         const result = this.file.match(this.data.DECK_REGEXP)
+        this.has_target_deck = result !== null
         this.target_deck = result ? result[1] : this.data.template["deckName"]
     }
 
     getDeckForBlock(blockText: string, noteTags: string[] = []): string {
         // An explicit TARGET DECK overrides tag mappings.
-        if (this.file.match(this.data.DECK_REGEXP)) {
+        if (this.has_target_deck) {
             return this.target_deck
         }
 
