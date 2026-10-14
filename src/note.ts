@@ -14,6 +14,13 @@ export const ID_REGEXP_STR: string = String.raw`\n?(?:<!--)?(?:ID: (\d+).*)`
 export const TAG_REGEXP_STR: string = String.raw`(Tags: .*)`
 const OBS_TAG_REGEXP: RegExp = /#([a-zA-Z0-9_\u00C0-\uFFFF\/\-]+)/g
 
+export function extractObsidianTags(text: string): string[] {
+    return Array.from(
+        text.matchAll(OBS_TAG_REGEXP),
+        match => match[1]
+    )
+}
+
 function normalizeObsidianTagToAnki(tag: string, format: boolean): string {
     if (format) {
         return tag.trim().replace(/\//g, '::')
@@ -22,7 +29,9 @@ function normalizeObsidianTagToAnki(tag: string, format: boolean): string {
 }
 
 function extractObsidianTagsAsAnki(fieldValue: string, format: boolean): string[] {
-    return Array.from(fieldValue.matchAll(OBS_TAG_REGEXP), match => normalizeObsidianTagToAnki(match[1], format))
+    return extractObsidianTags(fieldValue).map(
+        tag => normalizeObsidianTagToAnki(tag, format)
+    )
 }
 
 const ANKI_CLOZE_REGEXP: RegExp = /{{c\d+::[\s\S]+?}}/

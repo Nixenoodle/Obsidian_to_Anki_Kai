@@ -3,7 +3,7 @@
 import { FROZEN_FIELDS_DICT } from './interfaces/field-interface'
 import { AnkiConnectNote, AnkiConnectNoteAndID } from './interfaces/note-interface'
 import { FileData } from './interfaces/settings-interface'
-import { Note, InlineNote, RegexNote, CLOZE_ERROR, NOTE_TYPE_ERROR, TAG_SEP, ID_REGEXP_STR, TAG_REGEXP_STR } from './note'
+import { Note, InlineNote, RegexNote, CLOZE_ERROR, NOTE_TYPE_ERROR, TAG_SEP, ID_REGEXP_STR, TAG_REGEXP_STR, extractObsidianTags } from './note'
 import { basename, extname } from 'path';
 import { Md5 } from 'ts-md5/dist/md5';
 import * as AnkiConnect from './anki'
@@ -147,6 +147,34 @@ abstract class AbstractFile {
         this.target_deck = result ? result[1] : this.data.template["deckName"]
     }
 
+    getDeckForBlock(blockText: string, noteTags: string[] = []): string {
+        // An explicit TARGET DECK overrides tag mappings.
+        if (this.file.match(this.data.DECK_REGEXP)) {
+            return this.target_deck
+        }
+
+        // Inline hashtags have priority over note-specific Tags.
+        for (const tag of extractObsidianTags(blockText)) {
+            const deck = this.data.tag_decks[tag]
+
+            if (deck?.trim()) {
+                return deck.trim()
+            }
+        }
+
+        // Also check tags extracted from the Tags: declaration.
+        for (const tag of noteTags) {
+            const deck = this.data.tag_decks[tag.trim()]
+
+            if (deck?.trim()) {
+                return deck.trim()
+            }
+        }
+
+        // No matching tags: use the normal file/folder deck.
+        return this.target_deck
+    }
+
     setup_global_tags() {
         const result = this.file.match(this.data.TAG_REGEXP)
         this.global_tags = result ? result[1] : ""
@@ -277,8 +305,22 @@ abstract class AbstractFile {
         return AnkiConnect.notesInfo(IDs)
     }
 
+
     getChangeDecks(): AnkiConnect.AnkiConnectRequest {
-        return AnkiConnect.changeDeck(this.card_ids, this.target_deck)
+        const actions: AnkiConnect.AnkiConnectRequest[] = []
+
+        for (const parsed of this.notes_to_edit) {
+            if (parsed.current_cards?.length) {
+                actions.push(
+                    AnkiConnect.changeDeck(
+                        parsed.current_cards,
+                        parsed.note.deckName
+                    )
+                )
+            }
+        }
+
+        return AnkiConnect.multi(actions)
     }
 
     getClearTags(): AnkiConnect.AnkiConnectRequest {
@@ -416,9 +458,13 @@ export class AllFile extends AbstractFile {
                 this.formatter,
                 this.data.cloze_keyword
             )
+
             let context = this.getShouldAddContext(note_obj.note_type) ? this.getContextAtIndex(note_match.index) : ""
+
+            const noteDeck = this.getDeckForBlock(note, note_obj.tags)
+
             let parsed = note_obj.parse(
-                this.target_deck,
+                noteDeck,
                 this.url,
                 this.frozen_fields_dict,
                 this.data,
@@ -481,9 +527,13 @@ export class AllFile extends AbstractFile {
                 this.formatter,
                 this.data.cloze_keyword
             )
+
             let context = this.getShouldAddContext(note_obj.note_type) ? this.getContextAtIndex(note_match.index) : ""
+
+            const noteDeck = this.getDeckForBlock(note, note_obj.tags)
+
             let parsed = note_obj.parse(
-                this.target_deck,
+                noteDeck,
                 this.url,
                 this.frozen_fields_dict,
                 this.data,
@@ -554,9 +604,13 @@ export class AllFile extends AbstractFile {
                         match, note_type, this.data.fields_dict,
                         search_tags, search_id, this.data.curly_cloze, this.data.highlights_to_cloze, this.formatter, this.data.cloze_keyword
                     )
+
                     let context = this.getShouldAddContext(note_type) ? this.getContextAtIndex(match.index) : ""
+
+                    const noteDeck = this.getDeckForBlock(match[0], note_obj.tags)
+
                     const parsed: AnkiConnectNoteAndID = note_obj.parse(
-                        this.target_deck,
+                        noteDeck,
                         this.url,
                         this.frozen_fields_dict,
                         this.data,

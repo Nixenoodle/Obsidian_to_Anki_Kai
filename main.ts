@@ -28,6 +28,7 @@ export default class MyPlugin extends Plugin {
 			ALIAS_FIELDS: {},
 			FOLDER_DECKS: {},
 			FOLDER_TAGS: {},
+			TAG_DECKS: {},
 			Syntax: {
 				"Begin Note": "START",
 				"End Note": "END",

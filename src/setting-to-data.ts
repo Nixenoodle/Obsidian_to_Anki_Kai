@@ -17,6 +17,7 @@ export async function settingToData(app: App, settings: PluginSettings, fields_d
     result.alias_fields = settings.ALIAS_FIELDS
     result.folder_decks = settings.FOLDER_DECKS
     result.folder_tags = settings.FOLDER_TAGS
+    result.tag_decks = settings.TAG_DECKS ?? {}
     result.template = {
         deckName: settings.Defaults.Deck,
         modelName: "",
