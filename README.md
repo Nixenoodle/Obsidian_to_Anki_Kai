@@ -368,6 +368,58 @@ In this case, Anki reads the custom pronunciation for the front and the normal a
 - TTS playback requires an appropriately configured Anki card template.
 - Inline flashcards require their existing `STARTI` / `ENDI` syntax, and their field parser uses space-separated field labels.
 
+### Tag-to-Deck Routing
+
+Automatically route flashcards to Anki decks based on Obsidian tags. Supports regular, inline, and regex flashcards.
+
+#### Configuration
+
+In **Obsidian → Settings → Obsidian_to_Anki_Kai → Tag → Deck**, add mappings such as:
+
+| Tag | Anki Deck |
+|---|---|
+| `git` | `Programming::Git` |
+| `python` | `Programming::Python` |
+
+Use `::` for nested Anki decks. Unmapped tags use the normal deck selection.
+
+#### Examples
+
+**Inline hashtags:**
+
+```markdown
+What does `git remote -v` do? #git #flashcard
+It displays remote repository URLs.
+```
+
+With the mapping above, this card goes to `Programming::Git`.
+
+**Note-specific tags:**
+
+```markdown
+START
+Basic
+Front: What is a Git branch?
+Back: A movable pointer to a commit.
+Tags: git
+END
+```
+
+Note-specific `Tags:` declarations can also determine the destination deck.
+
+#### Deck Priority
+
+The plugin selects decks in this order:
+
+1. Explicit `TARGET DECK` declaration.
+2. First matching mapped hashtag in the flashcard.
+3. First matching note-specific `Tags:` mapping.
+4. Normal deck selection if no mapping matches.
+
+#### Moving Existing Cards
+
+Changing a card's mapped tag (e.g., `#git` to `#python`) and synchronizing again moves its existing Anki cards to the corresponding deck without creating a new note.
+
 ### Save Note ID to Frontmatter (Experimental)
 
 Allows saving the Anki Note ID (`nid`) in the Obsidian Frontmatter (YAML Properties) instead of as an inline comment or block ID.
