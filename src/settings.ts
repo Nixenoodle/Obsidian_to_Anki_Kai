@@ -11,7 +11,7 @@ const defaultDescs = {
 	"Default Tags": "The tag(s) that the plugin automatically adds to any generated cards. Separate multiple tags with commas.",
 	"Deck": "The deck the plugin adds cards to if TARGET DECK is not specified in the file.",
 	"Scheduling Interval": "The time, in minutes, between automatic scans of the vault. Set this to 0 to disable automatic scanning.",
-	"Add File Link": "Append a link to the file that generated the flashcard on the field specified in the table.",
+	"Add File Link": "Append a link that opens the source file and jumps to this flashcard in Obsidian, in the field specified in the table.",
 	"Add File Link - Link Label": "Enter the text to display for the link. Use {{title}} to insert the note’s filename.",
 	"Add Context": "Append 'context' for the card, in the form of path > heading > heading etc, to the field specified in the table.",
 	"Add Aliases": "Append aliases from frontmatter to the field specified in the table.",

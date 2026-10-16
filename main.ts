@@ -1,4 +1,4 @@
-import { Notice, Plugin, addIcon, TFile, TFolder, Menu, TAbstractFile, Editor, MarkdownView } from 'obsidian'
+import { Notice, Plugin, addIcon, TFile, TFolder, Menu, TAbstractFile, Editor, MarkdownView, ObsidianProtocolData, normalizePath } from 'obsidian'
 import * as AnkiConnect from './src/anki'
 import { PluginSettings, ParsedSettings } from './src/interfaces/settings-interface'
 import { DEFAULT_IGNORED_FILE_GLOBS, SettingsTab } from './src/settings'
@@ -8,10 +8,11 @@ import { FileManager } from './src/files-manager'
 import { ProgressModal } from './src/ui/ProgressModal'
 import { checkAndBulkDelete } from './src/bulk-delete'
 import { clozeRenderer } from './src/renderer'
+import { findCardSource } from './src/source-links'
 
 export default class MyPlugin extends Plugin {
 
-	settings: PluginSettings
+	declare settings: PluginSettings
 	note_types: Array<string>
 	fields_dict: Record<string, string[]>
 	added_media: string[]
@@ -550,6 +551,15 @@ export default class MyPlugin extends Plugin {
 	async onload() {
 		console.log('loading Obsidian_to_Anki...');
 		addIcon('anki', ANKI_ICON)
+		// Register before Anki-dependent setup: source links also work offline.
+		this.registerObsidianProtocolHandler('anki-card', params => {
+			this.app.workspace.onLayoutReady(() => {
+				this.openAnkiCard(params).catch(error => {
+					console.error('Could not open Anki card source', error)
+					new Notice('Could not open the flashcard in Obsidian.')
+				})
+			})
+		})
 		try {
 			this.settings = await this.loadSettings()
 			AnkiConnect.setApiKey(this.settings.Defaults["AnkiConnect API Key"] || "");
@@ -720,6 +730,32 @@ export default class MyPlugin extends Plugin {
 				}
 			})
 		);
+	}
+
+	async openAnkiCard(params: ObsidianProtocolData): Promise<void> {
+		const noteId = Number(params.nid)
+		if (!/^\d+$/.test(params.nid ?? '') || !Number.isSafeInteger(noteId) || noteId <= 0 || !params.file) {
+			new Notice('Invalid Anki flashcard source link.')
+			return
+		}
+		const file = this.app.vault.getAbstractFileByPath(normalizePath(params.file))
+		if (!(file instanceof TFile) || file.extension !== 'md') {
+			new Notice('Flashcard source file not found. Sync the card again if the file was moved or renamed.')
+			return
+		}
+		const leaf = this.app.workspace.getLeaf(false)
+		await leaf.openFile(file, { active: true, state: { mode: 'source' } })
+		if (!(leaf.view instanceof MarkdownView)) return
+		const editor = leaf.view.editor
+		const offset = findCardSource(editor.getValue(), noteId, this.settings)
+		if (offset === null) {
+			new Notice(`Could not find flashcard ID ${noteId} in ${file.path}. Try syncing the file again.`)
+			return
+		}
+		const position = editor.offsetToPos(offset)
+		editor.setCursor(position)
+		editor.scrollIntoView({ from: position, to: position }, true)
+		editor.focus()
 	}
 
 	private applyCloze(editor: Editor, selection: string) {

@@ -330,7 +330,15 @@ export class FileManager {
         }
         requests.push(AnkiConnect.multi(temp))
         temp = []
-        await AnkiConnect.invoke('multi', { actions: requests })
+        // New notes only receive IDs after addNote. Patch just their source-link
+        // fields now, so the first sync already produces working card links.
+        const linkUpdates = this.ownFiles.flatMap(file => file.getNewNoteLinkUpdates())
+        if (linkUpdates.length) requests.push(AnkiConnect.multi(linkUpdates))
+        const response = await AnkiConnect.invoke('multi', { actions: requests }) as Array<{ error: string, result: any }>
+        if (linkUpdates.length) {
+            const results = AnkiConnect.parse(response[response.length - 1])
+            for (const result of results) AnkiConnect.parse(result)
+        }
         console.info("All done!")
     }
 
