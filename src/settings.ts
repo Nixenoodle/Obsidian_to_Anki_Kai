@@ -3,6 +3,7 @@ import * as AnkiConnect from './anki'
 import { TabContainer } from './ui/TabContainer'
 import { SearchableTable } from './ui/SearchableTable'
 import { FolderSuggestModal, getAllFolders } from './ui/FolderSuggester'
+import type MyPlugin from '../main'
 
 const defaultDescs = {
 	"Scan Directory": "The directory to scan. Leave empty to scan the entire vault",
@@ -37,6 +38,12 @@ export const DEFAULT_IGNORED_FILE_GLOBS = [
 
 export class SettingsTab extends PluginSettingTab {
 	private tabContainer: TabContainer
+	private readonly ankiPlugin: MyPlugin
+
+	constructor(app: App, plugin: MyPlugin) {
+		super(app, plugin)
+		this.ankiPlugin = plugin
+	}
 
 	display() {
 		const { containerEl } = this
@@ -74,81 +81,79 @@ export class SettingsTab extends PluginSettingTab {
 
 
 	private setupTagDecksTab() {
-	    const container = this.tabContainer.getTabContent('tag-decks')
-	    if (!container) return
+		const container = this.tabContainer.getTabContent('tag-decks')
+		if (!container) return
 
-	    const plugin = (this as any).plugin
+		const plugin = this.ankiPlugin
 
-	    // Older installations may not have this setting yet.
-	    if (!plugin.settings.TAG_DECKS) {
-	        plugin.settings.TAG_DECKS = {}
-	    }
+		// Older installations may not have this setting yet.
+		if (!plugin.settings.TAG_DECKS) {
+			plugin.settings.TAG_DECKS = {}
+		}
 
-	    container.createEl('h3', { text: 'Tag → Deck Routing' })
+		container.createEl('h3', { text: 'Tag → Deck Routing' })
 
-	    container.createEl('p', {
-	        text: 'Map Obsidian tags to Anki decks. ' +
-	              'For example: #biology → School::Biology.'
-	    })
+		container.createEl('p', {
+			text: 'Map Obsidian tags to Anki decks. ' +
+				'For example: #biology → School::Biology.'
+		})
 
-	    // Display the currently configured mappings.
-	    const rows = container.createDiv()
+		// Display the currently configured mappings.
+		const rows = container.createDiv()
 
-	    const renderRows = () => {
-	        rows.empty()
+		const renderRows = () => {
+			rows.empty()
 
-	        const mappings = plugin.settings.TAG_DECKS as Record<string, string>
+			for (const [tag, deck] of Object.entries(plugin.settings.TAG_DECKS)) {
+				new Setting(rows)
+					.setName(`#${tag}`)
+					.setDesc(deck)
+					.addExtraButton(button => button
+						.setIcon('trash')
+						.setTooltip('Delete mapping')
+						.onClick(async () => {
+							delete plugin.settings.TAG_DECKS[tag]
+							await plugin.saveAllData()
+							renderRows()
+						})
+					)
+			}
+		}
 
-	        for (const [tag, deck] of Object.entries(mappings)) {
-	            new Setting(rows)
-	                .setName(`#${tag}`)
-	                .setDesc(deck)
-	                .addExtraButton(button => button
-	                    .setIcon('trash')
-	                    .setTooltip('Delete mapping')
-	                    .onClick(async () => {
-	                        delete plugin.settings.TAG_DECKS[tag]
-	                        await plugin.saveAllData()
-	                        renderRows()
-	                    })
-	                )
-	        }
-	    }
+		renderRows()
 
-	    renderRows()
-
-	    // Collect values for a new mapping.
-	    let tagInput = ''
-	    let deckInput = ''
+		// Collect values for a new mapping.
+		let tagInput = ''
+		let deckInput = ''
 
 		const addMappingSetting = new Setting(container)
-		.setName('Add tag mapping')
-		.setDesc('Enter an Obsidian tag and its destination Anki deck.')
-		.addText(text => text
-			.setPlaceholder('#biology')
-			.onChange(value => {
-				tagInput = value
-			})
-		)
-		.addText(text => text
-			.setPlaceholder('School::Biology')
-			.onChange(value => {
-				deckInput = value
-			})
-		)
-		.addButton(button => button
-			.setButtonText('Add mapping')
-			.onClick(async () => {
-				const tag = tagInput.trim().replace(/^#/, '')
-				const deck = deckInput.trim()
+			.setName('Add tag mapping')
+			.setDesc('Enter an Obsidian tag and its destination Anki deck.')
+			.addText(text => text
+				.setPlaceholder('#biology')
+				.onChange(value => {
+					tagInput = value
+				})
+			)
+			.addText(text => text
+				.setPlaceholder('School::Biology')
+				.onChange(value => {
+					deckInput = value
+				})
+			)
+			.addButton(button => button
+				.setButtonText('Add mapping')
+				.onClick(async () => {
+					const tag = tagInput.trim().replace(/^#/, '')
+					const deck = deckInput.trim()
 
-				if (!tag || !deck) return
+					if (!tag || !deck) return
 
-				plugin.settings.TAG_DECKS[tag] = deck
-				await plugin.saveAllData()
-				renderRows()
-			})
-		)
+					plugin.settings.TAG_DECKS[tag] = deck
+					await plugin.saveAllData()
+					renderRows()
+				})
+			)
 
 		addMappingSetting.controlEl.style.flexWrap = 'wrap'
 		addMappingSetting.controlEl.style.gap = '8px'
@@ -158,7 +163,7 @@ export class SettingsTab extends PluginSettingTab {
 		const container = this.tabContainer.getTabContent('general')
 		if (!container) return
 
-		const plugin = (this as any).plugin
+		const plugin = this.ankiPlugin
 
 		// Defaults section
 		container.createEl('h3', { text: 'Default Settings' })
@@ -528,7 +533,7 @@ export class SettingsTab extends PluginSettingTab {
 		const container = this.tabContainer.getTabContent('note-types')
 		if (!container) return
 
-		const plugin = (this as any).plugin
+		const plugin = this.ankiPlugin
 		const enableRequiredTags = plugin.settings.Defaults["Regex Required Tags"];
 		const enableLink = plugin.settings.Defaults["Add File Link"];
 		const enableContext = plugin.settings.Defaults["Add Context"];
@@ -608,7 +613,7 @@ export class SettingsTab extends PluginSettingTab {
 		const container = this.tabContainer.getTabContent('folders')
 		if (!container) return
 
-		const plugin = (this as any).plugin
+		const plugin = this.ankiPlugin
 		const folder_list = this.get_folders()
 
 		container.createEl('h3', { text: 'Folder Configuration' })
@@ -650,7 +655,7 @@ export class SettingsTab extends PluginSettingTab {
 		const container = this.tabContainer.getTabContent('syntax')
 		if (!container) return
 
-		const plugin = (this as any).plugin
+		const plugin = this.ankiPlugin
 
 		container.createEl('h3', { text: 'Syntax Settings' })
 		container.createEl('p', {
@@ -675,7 +680,7 @@ export class SettingsTab extends PluginSettingTab {
 		const container = this.tabContainer.getTabContent('advanced')
 		if (!container) return
 
-		const plugin = (this as any).plugin
+		const plugin = this.ankiPlugin
 
 		container.createEl('h3', { text: 'Actions' })
 
