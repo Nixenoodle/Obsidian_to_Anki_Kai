@@ -307,12 +307,46 @@ export class FileManager {
         return result
     }
 
+    async getCardsInTargetDecks(): Promise<Map<string, Set<number>>> {
+        const targetCards = new Map<string, Set<number>>()
+        for (const file of this.ownFiles) {
+            for (const parsed of file.notes_to_edit) {
+                if (!parsed.current_cards?.length) continue
+                const cards = targetCards.get(parsed.note.deckName) ?? new Set<number>()
+                for (const id of parsed.current_cards) cards.add(id)
+                targetCards.set(parsed.note.deckName, cards)
+            }
+        }
+        const cardsInTargetDecks = new Map<string, Set<number>>()
+        if (!targetCards.size) return cardsInTargetDecks
+
+        const deckIds = await AnkiConnect.invoke('deckNamesAndIds') as Record<string, number>
+        const deckIdsByName = new Map(Object.entries(deckIds).map(([name, id]) => [name.toLowerCase(), id]))
+        const decksToSearch = [...targetCards.keys()].filter(name => deckIdsByName.has(name.toLowerCase()))
+        for (const name of targetCards.keys()) cardsInTargetDecks.set(name, new Set())
+        if (!decksToSearch.length) return cardsInTargetDecks
+
+        const actions = decksToSearch.map(name => AnkiConnect.findCards(
+            // did: matches this exact deck (not its children), including a
+            // filtered card's original deck. IDs also avoid name escaping and
+            // special names such as "current"/"filtered" in deck: searches.
+            `did:${deckIdsByName.get(name.toLowerCase())} cid:${[...targetCards.get(name)].join(',')}`
+        ))
+        const responses = await AnkiConnect.invoke('multi', { actions }) as Array<{ error: string, result: number[] }>
+        for (let i = 0; i < decksToSearch.length; i++) {
+            // Fail before moving any cards if a membership lookup fails.
+            cardsInTargetDecks.set(decksToSearch[i], new Set(AnkiConnect.parse(responses[i])))
+        }
+        return cardsInTargetDecks
+    }
+
     async requests_2(): Promise<void> {
         let requests: AnkiConnect.AnkiConnectRequest[] = []
         let temp: AnkiConnect.AnkiConnectRequest[] = []
+        const cardsInTargetDecks = await this.getCardsInTargetDecks()
         console.info("Requesting cards to be moved to target deck...")
         for (let file of this.ownFiles) {
-            temp.push(file.getChangeDecks())
+            temp.push(file.getChangeDecks(cardsInTargetDecks))
         }
         requests.push(AnkiConnect.multi(temp))
         temp = []

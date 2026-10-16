@@ -325,14 +325,19 @@ abstract class AbstractFile {
     }
 
 
-    getChangeDecks(): AnkiConnect.AnkiConnectRequest {
+    getChangeDecks(cardsInTargetDecks: ReadonlyMap<string, ReadonlySet<number>>): AnkiConnect.AnkiConnectRequest {
         const actions: AnkiConnect.AnkiConnectRequest[] = []
 
         for (const parsed of this.notes_to_edit) {
-            if (parsed.current_cards?.length) {
+            const cardsInDeck = cardsInTargetDecks.get(parsed.note.deckName)
+            if (!cardsInDeck) continue
+            // changeDeck removes cards from filtered decks, even when their
+            // home deck is already correct. Only move cards that need it.
+            const cardsToMove = parsed.current_cards?.filter(id => !cardsInDeck.has(id)) ?? []
+            if (cardsToMove.length) {
                 actions.push(
                     AnkiConnect.changeDeck(
-                        parsed.current_cards,
+                        cardsToMove,
                         parsed.note.deckName
                     )
                 )
