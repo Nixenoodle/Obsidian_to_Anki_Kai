@@ -6,6 +6,9 @@ export function cardSourceUrl(fileUrl: string, noteId: number): string {
     const url = new URL(fileUrl)
     url.hostname = 'anki-card'
     url.searchParams.set('nid', String(noteId))
+    // URLSearchParams uses HTML form encoding ('+' for spaces). Obsidian URI
+    // parameters need percent encoding; leave literal plus signs as %2B.
+    url.search = url.searchParams.toString().replace(/\+/g, '%20')
     return url.toString()
 }
 

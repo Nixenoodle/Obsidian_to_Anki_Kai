@@ -64,6 +64,17 @@ async function run() {
         assert.equal(url.searchParams.get('file'), 'Notes/日本 #1.md');
         assert.equal(url.searchParams.get('nid'), '123');
     });
+    await test('protocol parameters preserve spaces and literal plus signs with percent-only decoding', () => {
+        const vault = 'My + Vault';
+        const file = 'Notes/C++ and 日本 #1.md';
+        const uri = cardSourceUrl(`obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(file)}`, 123);
+        // Custom URI handlers can percent-decode without applying HTML form
+        // encoding rules: a raw '+' is then a literal '+', not a space.
+        const params = Object.fromEntries(new URL(uri).search.slice(1).split('&').map(pair => pair.split('=').map(decodeURIComponent)));
+        assert.equal(params.vault, vault);
+        assert.equal(params.file, file);
+        assert.ok(!new URL(uri).search.includes('+'));
+    });
     await test('link update preserves label, context, aliases, and unrelated links/fields', () => {
         const back = `Answer<br><a href="${fileUrl}" class="obsidian-link">Source: 日本</a><br>Context<br>Alias<a href="https://example.com">Other</a>`;
         const fields = { Front: 'Question', Back: back };
