@@ -92,6 +92,14 @@ You can customize the text used for the "Add File Link" feature.
   - Example: `Source: {{title}}` -> `Source: MyNote`
 - **Default**: If left empty, it defaults to "Obsidian".
 
+#### Jump directly to a flashcard
+
+Source links now open Obsidian, open the source file in editing view, and scroll to the specific flashcard. They locate the card by its Anki note ID rather than a line number, so adding text above a card does not break its link. Block, inline, custom-regex cards, and single-card files using frontmatter `nid` are supported. No additional Obsidian plugin or block markers are required, and opening links does not require Anki to be running.
+
+- Enable **Add File Link** and select the target field for each Note Type as usual. Newly created cards get precise links on their first sync.
+- To upgrade existing file-only links, temporarily turn **Smart Scan** off, sync the relevant files, then turn it back on.
+- Keep this plugin enabled in the target vault. After moving or renaming a source file, sync it again to refresh its links. If the card's ID is removed, sync the file again before using its source link.
+
 ### Configurable CurlyCloze Keyword
 
 The keyword used to identify Cloze Note Types for CurlyCloze syntax (`{...}` -> `{{c1::...}}`) is now configurable.

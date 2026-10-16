@@ -11,6 +11,7 @@ import * as c from './constants'
 import { FormatConverter } from './format'
 import { CachedMetadata, HeadingCache } from 'obsidian'
 import { blockHasRequiredTag } from './required-tags'
+import { cardSourceLinkFields } from './source-links'
 
 const double_regexp: RegExp = /(?:\r\n|\r|\n)((?:\r\n|\r|\n)(?:<!--)?ID: \d+)/g
 
@@ -290,11 +291,26 @@ abstract class AbstractFile {
         for (let parsed of this.notes_to_edit) {
             actions.push(
                 AnkiConnect.updateNoteFields(
-                    parsed.identifier, parsed.note.fields
+                    parsed.identifier, { ...parsed.note.fields, ...this.getSourceLinkFields(parsed.note, parsed.identifier) }
                 )
             )
         }
         return AnkiConnect.multi(actions)
+    }
+
+    getSourceLinkFields(note: AnkiConnectNote, noteId: number): Record<string, string> {
+        if (!this.data.add_file_link) return {}
+        return cardSourceLinkFields(note.fields, this.data.file_link_fields[note.modelName], this.url, noteId)
+    }
+
+    getNewNoteLinkUpdates(): AnkiConnect.AnkiConnectRequest[] {
+        const actions: AnkiConnect.AnkiConnectRequest[] = []
+        this.all_notes_to_add.forEach((note, index) => {
+            const id = this.note_ids[index]
+            const fields = this.getSourceLinkFields(note, id)
+            if (Object.keys(fields).length) actions.push(AnkiConnect.updateNoteFields(id, fields))
+        })
+        return actions
     }
 
     getNoteInfo(): AnkiConnect.AnkiConnectRequest {
