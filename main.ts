@@ -12,7 +12,7 @@ import { findCardSource } from './src/source-links'
 
 export default class MyPlugin extends Plugin {
 
-	settings: PluginSettings
+	declare settings: PluginSettings
 	note_types: Array<string>
 	fields_dict: Record<string, string[]>
 	added_media: string[]
