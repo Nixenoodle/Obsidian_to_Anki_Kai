@@ -162,6 +162,41 @@ async function run() {
                 assert.equal(f.calls.filter(call => ['deckNamesAndIds', 'findCards', 'changeDeck'].includes(call.action)).length, 0);
             }
         });
+        await test('a whitespace-variant target deck still matches the deck list', async () => {
+            const f = fixture([makeFile('Home ', 100, [1])], [{ id: 1, did: 30, odid: 10 }]);
+            await f.manager.requests_2();
+            assert.deepEqual(f.calls.filter(call => call.action === 'findCards').map(call => call.params.query), ['did:10 cid:1']);
+            assert.equal(f.calls.filter(call => call.action === 'changeDeck').length, 0);
+        });
+        await test('multiple notes in one file are looked up and skipped independently', async () => {
+            const file = Object.assign(Object.create(AllFile.prototype), {
+                notes_to_edit: [
+                    {
+                        identifier: 100, current_cards: [1], current_tags: ['edit'],
+                        note: { deckName: 'Home', fields: { Front: 'Q1', Back: 'A1' }, tags: ['edit'] }
+                    },
+                    {
+                        identifier: 200, current_cards: [3], current_tags: ['edit'],
+                        note: { deckName: 'Other', fields: { Front: 'Q2', Back: 'A2' }, tags: ['edit'] }
+                    }
+                ],
+                data: { add_file_link: false }, all_notes_to_add: [], note_ids: []
+            });
+            const f = fixture([file], [{ id: 1, did: 30, odid: 10 }, { id: 3, did: 20, odid: 0 }]);
+            await f.manager.requests_2();
+            assert.deepEqual(f.calls.filter(call => call.action === 'findCards').map(call => call.params.query), [
+                'did:10 cid:1', 'did:20 cid:3'
+            ]);
+            assert.equal(f.calls.filter(call => call.action === 'changeDeck').length, 0);
+        });
+        await test('a note targeted at two different decks keeps converging to the last file', async () => {
+            const f = fixture([makeFile('Home', 100, [1]), makeFile('Other', 100, [1])], [{ id: 1, did: 10, odid: 0 }]);
+            await f.manager.requests_2();
+            assert.deepEqual(f.calls.filter(call => call.action === 'changeDeck').map(call => call.params), [
+                { cards: [1], deck: 'Home' }, { cards: [1], deck: 'Other' }
+            ]);
+            assert.deepEqual(f.storedCards.get(1), { id: 1, did: 20, odid: 0 });
+        });
         await test('membership errors abort before any cards are moved', async () => {
             const f = fixture([makeFile('Home', 100, [1])], [{ id: 1, did: 30, odid: 10 }]);
             const invoke = AnkiConnect.invoke;
