@@ -111,6 +111,10 @@ export function notesInfo(note_ids: number[]): AnkiConnectRequest {
 	)
 }
 
+export function findCards(query: string): AnkiConnectRequest {
+	return request('findCards', {query})
+}
+
 export function changeDeck(card_ids: number[], deck: string): AnkiConnectRequest {
 	return request(
 		'changeDeck', {

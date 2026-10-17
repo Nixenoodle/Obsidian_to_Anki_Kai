@@ -307,12 +307,71 @@ export class FileManager {
         return result
     }
 
+    async getCardsInTargetDecks(): Promise<Map<string, Set<number>>> {
+        const targetCards = new Map<string, Set<number>>()
+        for (const file of this.ownFiles) {
+            for (const parsed of file.notes_to_edit) {
+                if (!parsed.current_cards?.length) continue
+                const cards = targetCards.get(parsed.note.deckName) ?? new Set<number>()
+                for (const id of parsed.current_cards) cards.add(id)
+                targetCards.set(parsed.note.deckName, cards)
+            }
+        }
+        const cardsInTargetDecks = new Map<string, Set<number>>()
+        if (!targetCards.size) return cardsInTargetDecks
+
+        const deckIds = await AnkiConnect.invoke('deckNamesAndIds') as Record<string, number>
+        // Anki resolves deck names ignoring case and surrounding whitespace,
+        // so normalize the same way before matching against the deck list.
+        const normalizeDeckName = (name: string): string => name.trim().toLowerCase()
+        const deckIdsByName = new Map(Object.entries(deckIds).map(([name, id]) => [normalizeDeckName(name), id]))
+        const decksToSearch = [...targetCards.keys()].filter(name => deckIdsByName.has(normalizeDeckName(name)))
+        for (const name of targetCards.keys()) cardsInTargetDecks.set(name, new Set())
+        if (!decksToSearch.length) return cardsInTargetDecks
+
+        // A card targeted at two different decks (the same note ID duplicated
+        // across files) must keep moving every sync so the last file wins,
+        // as it did before membership filtering.
+        const decksByCard = new Map<number, Set<string | number>>()
+        for (const [name, cards] of targetCards) {
+            const deck = deckIdsByName.get(normalizeDeckName(name)) ?? `new deck: ${normalizeDeckName(name)}`
+            for (const id of cards) {
+                const decks = decksByCard.get(id) ?? new Set<string | number>()
+                decks.add(deck)
+                decksByCard.set(id, decks)
+            }
+        }
+        const contestedCards = new Set<number>()
+        for (const [id, decks] of decksByCard) {
+            if (decks.size > 1) contestedCards.add(id)
+        }
+
+        const actions = decksToSearch.map(name => AnkiConnect.findCards(
+            // did: matches this exact deck (not its children), including a
+            // filtered card's original deck (odid matching requires Anki
+            // 24.11+; older versions keep the pre-fix move behaviour). IDs
+            // also avoid name escaping and special names such as
+            // "current"/"filtered" in deck: searches.
+            `did:${deckIdsByName.get(normalizeDeckName(name))} cid:${[...targetCards.get(name)].join(',')}`
+        ))
+        const responses = await AnkiConnect.invoke('multi', { actions }) as Array<{ error: string, result: number[] }>
+        for (let i = 0; i < decksToSearch.length; i++) {
+            // Fail before moving any cards if a membership lookup fails.
+            cardsInTargetDecks.set(decksToSearch[i], new Set(AnkiConnect.parse(responses[i])))
+        }
+        for (const cards of cardsInTargetDecks.values()) {
+            for (const id of contestedCards) cards.delete(id)
+        }
+        return cardsInTargetDecks
+    }
+
     async requests_2(): Promise<void> {
         let requests: AnkiConnect.AnkiConnectRequest[] = []
         let temp: AnkiConnect.AnkiConnectRequest[] = []
+        const cardsInTargetDecks = await this.getCardsInTargetDecks()
         console.info("Requesting cards to be moved to target deck...")
         for (let file of this.ownFiles) {
-            temp.push(file.getChangeDecks())
+            temp.push(file.getChangeDecks(cardsInTargetDecks))
         }
         requests.push(AnkiConnect.multi(temp))
         temp = []

@@ -204,6 +204,7 @@ async function run() {
             AnkiConnect.invoke = async () => [{ error: null, result: [] }, { error: null, result: [] }, { error: null, result: [] }, { error: null, result: [{ error: 'update failed', result: null }] }];
             const manager = Object.assign(Object.create(FileManager.prototype), {
                 ownFiles: [{
+                    notes_to_edit: [],
                     getChangeDecks: () => ({}), getClearTags: () => ({ params: {} }), getAddTags: () => ({ params: {} }),
                     getNewNoteLinkUpdates: () => [{ action: 'updateNoteFields' }]
                 }]
